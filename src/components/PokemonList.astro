@@ -1,0 +1,69 @@
+---
+import { Image } from 'astro:assets';
+
+type TPokemonNameResponse = {
+  results: { name: string; url: string }[];
+};
+
+type TPokemonResponse = {
+  id: number;
+  name: string;
+  sprites: {
+    front_default: string;
+  };
+};
+
+type TPokemon = {
+  id: number;
+  name: string;
+  sprite: string;
+};
+
+async function fetchPokemonNames(): Promise<TPokemonNameResponse['results']> {
+  const response = await fetch('https://pokeapi.co/api/v2/pokemon');
+  const body = (await response.json()) as TPokemonNameResponse;
+  return body.results;
+}
+
+const pokemonNames = await fetchPokemonNames();
+
+const queries: Promise<Response>[] = Array(pokemonNames.length);
+for (const [i, p] of pokemonNames.entries()) {
+  queries[i] = fetch(`https://pokeapi.co/api/v2/pokemon/${p.name}`);
+}
+
+const results = await Promise.all(
+  queries.map(async (querie) => {
+    const res = await querie;
+    return res.json() as Promise<TPokemonResponse>;
+  })
+);
+
+const pokemon: TPokemon[] = results.map((p) => ({
+  id: p.id,
+  name: p.name,
+  sprite: p.sprites.front_default,
+}));
+---
+
+<div class="pt-16">
+  <ul class="flex flex-wrap flex-shrin gap-8 justify-center">
+    {
+      pokemon.map((p) => (
+        <li class="box-border ease-in-out duration-300 hover:scale-110 flex items-center flex-col p-4">
+          <div class="cursor-pointer bg-blue-300/40 rounded-xl shadow-md hover:shadow-lg ease-in-out duration-300 outline-blue-300/0 outline hover:outline-1 hover:outline-blue-300">
+            <Image
+              src={`https://img.pokemondb.net/sprites/brilliant-diamond-shining-pearl/normal/${p.name}.png`}
+              alt={`${p.name} sprite`}
+              width={192}
+              height={192}
+            />
+          </div>
+          <div class="relative shadow-2xl -top-5  py-2 px-4 rounded-md capitalize text-white text-xl font-medium bg-black">
+            <h3 class="leading-none ">{p.name}</h3>
+          </div>
+        </li>
+      ))
+    }
+  </ul>
+</div>
